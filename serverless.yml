@@ -1,0 +1,43 @@
+service: serverless-example
+
+plugins:
+  - serverless-plugin-typescript
+  - serverless-offline
+
+provider:
+  name: aws
+  runtime: nodejs6.10
+
+functions:
+  # GET FUNCTIONS
+  hello:
+    handler: handler.hello
+    events:
+      - http:
+          path: hello
+          method: get
+          cors: true
+  # check database for transactions and print result
+  testget:
+    handler: handler.testget
+    events:
+      - http:
+          path: testget
+          method: get
+          cors: true
+  #
+  flagEvents:
+    handler: handler.flagEvents
+    events:
+      - http:
+          path: flagEvents
+          method: get
+          cors: true
+  # POST FUNCTIONS
+  chainsawPoll:
+    handler: functions/chainsawPoll/handler.handler
+    events:
+      - http:
+          path: chainsaw/request
+          method: post
+          cors: true
