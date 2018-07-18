@@ -1,30 +1,28 @@
 "use strict";
 module.exports = {
+  // VCStateUpdate channel
   up: (queryInterface, Sequelize) => {
-    return queryInterface.createTable("ContractEvents", {
+    return queryInterface.createTable("VCStateUpdates", {
       id: {
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
         type: Sequelize.INTEGER
       },
-      contract: {
-        type: Sequelize.STRING
-      },
       ts: {
         type: Sequelize.BIGINT
       },
-      blockNumber: {
-        type: Sequelize.INTEGER
-      },
-      isValidBlock: {
-        type: Sequelize.BOOLEAN
-      },
-      sender: {
-        type: Sequelize.STRING
-      },
       eventType: {
         type: Sequelize.STRING
+      },
+      vcid: {
+        type: Sequelize.STRING
+      },
+      lcid: {
+        type: Sequelize.STRING
+      },
+      nonce: {
+        type: Sequelize.INTEGER
       },
       fields: {
         type: Sequelize.JSONB
@@ -39,7 +37,8 @@ module.exports = {
       }
     });
   },
+
   down: (queryInterface, Sequelize) => {
-    return queryInterface.dropTable("ContractEvents");
+    return queryInterface.dropTable("VCStateUpdates");
   }
-};
+}

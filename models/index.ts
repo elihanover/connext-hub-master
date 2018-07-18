@@ -4,6 +4,8 @@ import * as path from "path";
 import * as SequelizeStatic from "sequelize";
 import { Sequelize } from "sequelize";
 import ContractEvent from "./contractevent";
+import VCStateUpdate from "./vcstateupdate";
+import PollTableEntry from "./lastblock";
 
 class Database {
   private _basename: string;

@@ -33,7 +33,22 @@ functions:
           path: flagEvents
           method: get
           cors: true
+  lambdaOne:
+    handler: handler.catchEvents
+    events:
+      - http:
+          path: catchEvents
+          method: get
+          cors: true
   # POST FUNCTIONS
+  vcStateUpdate:
+    handler: handler.vcStateUpdate
+    events:
+      - http: post vcStateUpdate
+  cosignStateUpdate:
+    handler: handler.cosignStateUpdate
+    events:
+      - http: post cosignStateUpdate
   chainsawPoll:
     handler: functions/chainsawPoll/handler.handler
     events:
