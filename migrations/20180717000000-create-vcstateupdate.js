@@ -18,9 +18,6 @@ module.exports = {
       vcid: {
         type: Sequelize.STRING
       },
-      lcid: {
-        type: Sequelize.STRING
-      },
       nonce: {
         type: Sequelize.INTEGER
       },

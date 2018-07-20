@@ -17,10 +17,6 @@ function default_1(sequelize, dataTypes) {
             type: dataTypes.STRING,
             allowNull: false
         },
-        lcid: {
-            type: dataTypes.STRING,
-            allowNull: false
-        },
         vcid: {
             type: dataTypes.STRING,
             allowNull: false

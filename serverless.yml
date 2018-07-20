@@ -3,10 +3,43 @@ service: serverless-example
 plugins:
   - serverless-plugin-typescript
   - serverless-offline
+  # - serverless-sqs-local # local testing guy
+  # - serverless-offline-localstack # for localstack
+
+# custom:
+#   serverlessOfflineLocalstack:
+#     host: http://localhost
+#     kinesis:
+#       enabled: true
+#       intervalMillis: 5000
+#     endpoints:
+#       S3: http://localhost:4572
+#       DynamoDB: http://localhost:4570
+#       CloudFormation: http://localhost:4581
+#       Elasticsearch: http://localhost:4571
+#       ES: http://localhost:4578
+#       SNS: http://localhost:4575
+#       SQS: http://localhost:4576
+#       Lambda: http://localhost:4574
+#       Kinesis: http://localhost:4568
+#     debug: true
+
 
 provider:
   name: aws
   runtime: nodejs6.10
+  # aws queue
+  # region: us-east-2
+  # iamRoleStatements:
+  #   - Effect: "Allow"
+  #     Action:
+  #       - "sqs:SendMessage"
+  #       - "sqs:GetQueueUrl"
+  #     Resource: "arn:aws:sqs:us-east-2:626689416502:EventQueue"
+  #   - Effect: "Allow"
+  #     Action:
+  #       - "sqs:ListQueues"
+  #     Resource: "arn:aws:sqs:us-east-2:626689416502:EventQueue"
 
 functions:
   # GET FUNCTIONS
@@ -44,7 +77,12 @@ functions:
   vcStateUpdate:
     handler: handler.vcStateUpdate
     events:
-      - http: post vcStateUpdate
+      - http:
+          path: virtualchannel/{vcid}/update
+          method: post
+          request:
+            paths:
+              vc: true
   cosignStateUpdate:
     handler: handler.cosignStateUpdate
     events:
@@ -56,3 +94,12 @@ functions:
           path: chainsaw/request
           method: post
           cors: true
+
+  # testSQS:
+  #   handler: handler.testSQS
+  #   events:
+  #     - sqs:
+  #         arn:
+  #           Fn::GetAtt:
+  #             - EventQueue
+  #             - Arn

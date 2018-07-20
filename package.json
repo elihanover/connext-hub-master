@@ -22,7 +22,9 @@
     "@types/uuid": "^3.4.3",
     "sequelize-cli": "^4.0.0",
     "serverless-offline": "^3.25.5",
-    "serverless-plugin-typescript": "^1.1.5"
+    "serverless-offline-localstack": "0.0.3",
+    "serverless-plugin-typescript": "^1.1.5",
+    "serverless-sqs-local": "^1.1.2"
   },
   "dependencies": {
     "aws-sdk": "^2.267.1",
