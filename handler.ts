@@ -8,7 +8,7 @@ import {
 import {
   VCStateUpdateAttributes,
   VCStateUpdateInstance,
-} from "./models/interfaces/vcStateUpdate-interface";
+} from "./models/interfaces/vcstateupdate-interface";
 const Sequelize = require('sequelize');
 const op = Sequelize.Op;
 const fs = require('fs') // for reading contract abi
@@ -16,43 +16,9 @@ const fs = require('fs') // for reading contract abi
 var Web3 = require('web3')
 var web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
 
-// const AWS = require('aws-sdk');
-// // offline localstack boi
-// const ServerlessOfflineLocalstack = require('serverless-offline-localstack');
-// ServerlessOfflineLocalstack.configureAWS(AWS);
-
-
-var AWS = require('aws-sdk\\global');
-var SQS = require('aws-sdk\\clients\\SQS');
-
-export async function testSQS(event, context, callback) {
-  var myCredentials = new AWS.Credentials("x", "x");
-
-  var sqs = new AWS.SQS({
-      apiVersion: '2012-11-05',
-      credentials: myCredentials,
-      region: "none",
-      endpoint: "http://localhost:4576"
-  });
-
-  var params = {};
-
-  //sample code from amazon
-  console.log("calling listQueues");
-  //call for SQS list
-  sqs.listQueues(params, function (err, data) {
-      if (err) {
-          console.log("Error", err);
-      } else {
-          console.log("Success", data.QueueUrls);
-      }
-  });
-}
-
+// vcStateUpdate from http request added to database
 export async function vcStateUpdate(event, context, callback) {
     const update = JSON.parse(event.body)
-    // console.log(update.balanceA)
-
     const vcUpdate: VCStateUpdateAttributes = {
       ts: Date.now(),
       eventType: "DidVCSettle",
@@ -123,12 +89,11 @@ export async function vcStateUpdate(event, context, callback) {
 //   }
 // }
 
-export async function catchEvents (
-  event: any,
-  context: Context,
-  callback: Callback
-) {
+// catchEvents gets hub contract events and stores them in ContractEvents DB
+export async function catchEvents (event, context, callback) {
   var blockNumber = -1
+
+  // get blockNumber of last polled block from LastBlock table
   try {
     blockNumber = await models.LastBlock.findOne({
       where: {
@@ -142,23 +107,25 @@ export async function catchEvents (
     console.log(error)
   }
 
-  const contractAddress = "0xa6bc3e6b78684025428a530a1f14358daf2c7305" // ganache
+  const contractAddress = "0xa6bc3e6b78684025428a530a1f14358daf2c7305"
   const contract = JSON.parse(fs.readFileSync('LedgerChannel.json', 'utf8'))
   const eventFinder = new web3.eth.Contract(contract.abi, contractAddress)
 
+  // Query contract for DidVCSettle events between last block checked and now
   eventFinder.getPastEvents("DidVCSettle", {
     filter: {},
     fromBlock: blockNumber,
     toBlock: "latest"
   }, function(error, events){ console.log(events) })
   .then(async function(events){
+    // Add each of these events to the ContractEvents database
     for (var i in events){
       const eventAttrs: ContractEventAttributes = {
         contract: contractAddress,
         ts: Date.now(),
         blockNumber: events[i].blockNumber,
-        isValidBlock: true, // ?
-        sender: "0x?",
+        isValidBlock: true, // ¿¿ just assume true ??
+        sender: "0x?", // ¿¿ who is sender and why keep track of sender ??
         eventType: "DidVCSettle",
         fields: JSON.stringify(events[i])
       };
@@ -167,8 +134,7 @@ export async function catchEvents (
         const e: ContractEventInstance = await models.ContractEvent.create(
           eventAttrs
         );
-      }
-      catch (error) {
+      } catch (error) {
         console.log(error)
       }
     }
@@ -179,6 +145,7 @@ export async function catchEvents (
     return res
   })
 
+  // update LastBlock table to hold lastest polled block
   try {
     await models.LastBlock.update(
       {lastBlock: blockNumber},
@@ -204,13 +171,13 @@ export async function catchEvents (
   callback(null, response);
 }
 
-// check db for relevant events past block b
-// and make dispute if higher nonce, cosigned vcstateupdate
+// WILL BE TRIGGERED BY QUEUE
+// flagEvents checks db for relevant events and makes dispute if higher nonced vcstateupdate
 export async function flagEvents(event, context, callback) {
   // dependencies work as expected
   console.log(_.VERSION);
 
-  // just for testing, will be read from separate database
+  // just for testing, will be passed params from queue
   var lastBlock = 0;
 
   // read blockchain db for events where:
@@ -220,7 +187,7 @@ export async function flagEvents(event, context, callback) {
         [op.gt]: lastBlock
       },
       eventType: {
-        [op.or]: ["settleVC", "updateLCstate", "DidVCSettle"]
+        [op.or]: ["DidLCUpdateState", "DidVCSettle"]
       },
     }
   });
@@ -230,10 +197,10 @@ export async function flagEvents(event, context, callback) {
     var update = null
     try {
       update = JSON.parse(foundEvents[i].dataValues.fields).returnValues
-      // update = update.returnValues
     } catch { continue }
 
     if (update != null) {
+      // query VCStateUpdate DB for higher nonce state update of this event type
       var proof: VCStateUpdateInstance = await models.VCStateUpdate.findOne({
         where: { // get max cosigned update with nonce > event.nonce
           vcid: {
@@ -248,6 +215,7 @@ export async function flagEvents(event, context, callback) {
         }
       })
       if (proof != null) {
+        // submit proof
         const eventType = proof.dataValues.eventType
         proof = JSON.parse(proof.dataValues.fields)
         proof.eventType = eventType
@@ -261,7 +229,7 @@ export async function flagEvents(event, context, callback) {
     }
   }
 
-  // return result
+  // what should this response be?
   const response = {
     statusCode: 200,
     body: JSON.stringify({
@@ -273,17 +241,14 @@ export async function flagEvents(event, context, callback) {
   callback(null, response);
 }
 
-// construct proof and submit on chain
+// disputeWithProof challenges with higher nonce state update
 async function disputeWithProof(proof) {
-  console.log("testing :|")
-  console.log(proof)
-
   const contractAddress = "0xa6bc3e6b78684025428a530a1f14358daf2c7305"
   const contract = JSON.parse(fs.readFileSync('LedgerChannel.json', 'utf8'));
   const ChannelManager = new web3.eth.Contract(contract.abi, contractAddress)
 
   if (proof.eventType == "DidVCSettle") {
-    // get challengers signature
+    // get challenger's signature
     const balanceA = Web3.utils.toBN(proof.balanceA)
     const balanceB = Web3.utils.toBN(proof.balanceB)
     const hubBond = balanceA.add(balanceB)
@@ -307,7 +272,7 @@ async function disputeWithProof(proof) {
         proof.balanceB,
         sigA
       ).send(
-        {from: "0x3ad3e0608f59d34cc4f7617d4f5e1abc6c196e50"}
+        {from: "0x3ad3e0608f59d34cc4f7617d4f5e1abc6c196e50"}  // test address
       )
     })
   }
