@@ -16,21 +16,37 @@ const fs = require('fs') // for reading contract abi
 var Web3 = require('web3')
 var web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
 
-const AWS = require('aws-sdk');
-// offline localstack boi
-const ServerlessOfflineLocalstack = require('serverless-offline-localstack');
-ServerlessOfflineLocalstack.configureAWS(AWS);
+// const AWS = require('aws-sdk');
+// // offline localstack boi
+// const ServerlessOfflineLocalstack = require('serverless-offline-localstack');
+// ServerlessOfflineLocalstack.configureAWS(AWS);
 
+
+var AWS = require('aws-sdk\\global');
+var SQS = require('aws-sdk\\clients\\SQS');
 
 export async function testSQS(event, context, callback) {
-    console.log("dat BOOOIII")
-    console.log(event)
-    const response = {
-        statusCode: 200,
-        body: JSON.stringify({
-            message: 'SQS event processed.',
-        })
-    };
+  var myCredentials = new AWS.Credentials("x", "x");
+
+  var sqs = new AWS.SQS({
+      apiVersion: '2012-11-05',
+      credentials: myCredentials,
+      region: "none",
+      endpoint: "http://localhost:4576"
+  });
+
+  var params = {};
+
+  //sample code from amazon
+  console.log("calling listQueues");
+  //call for SQS list
+  sqs.listQueues(params, function (err, data) {
+      if (err) {
+          console.log("Error", err);
+      } else {
+          console.log("Success", data.QueueUrls);
+      }
+  });
 }
 
 export async function vcStateUpdate(event, context, callback) {
