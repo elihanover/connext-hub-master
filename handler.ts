@@ -189,7 +189,7 @@ export async function catchEvents (event, context, callback) {
     console.log(error)
   }
 
-  const contractAddress = "0x95adaa688252b8bb1af0860ac1e6af7774ef1385"
+  const contractAddress = "0x339b8c36eb1eb942e88a1600c31269bb8561212c"
   const contract = JSON.parse(fs.readFileSync('LedgerChannel.json', 'utf8'))
   const eventFinder = new web3.eth.Contract(contract.abi, contractAddress)
 
@@ -405,7 +405,7 @@ async function sqsMessageFrom(event) {
     },
     "sender": {
       DataType: "String",
-      StringValue: "N/A"
+      StringValue: String(event.address)
     },
     "eventType": {
       DataType: "String",
