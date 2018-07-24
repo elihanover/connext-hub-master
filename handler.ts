@@ -2,10 +2,6 @@ import * as _ from "lodash";
 import { Context, Callback } from "aws-lambda";
 import { models } from "./models/index";
 import {
-  ContractEventAttributes,
-  ContractEventInstance,
-} from "./models/interfaces/contractevent-interface";
-import {
   VCStateUpdateAttributes,
   VCStateUpdateInstance,
 } from "./models/interfaces/vcstateupdate-interface";
@@ -32,7 +28,7 @@ var sqs = new AWS.SQS({
 const app = Consumer.create({
   queueUrl: 'http://localhost:9324/queue/ContractEventQueue',
   handleMessage: (message, done) => {
-    disputeWithEvent(message)
+    challengeEvent(message)
     done();
   },
   sqs: sqs
@@ -44,59 +40,6 @@ app.on('error', (err) => {
 
 app.start();
 
-export async function testSendSQS(event, context, callback) {
-  var params = {
-       DelaySeconds: 10,
-       MessageAttributes: {
-        "ContractEvent": {
-          DataType: "String",
-          StringValue: "InitVCState"
-         },
-         "Blocknumber": {
-           DataType: "String",
-           StringValue: "6"
-         }
-       },
-       MessageBody: "testtest",
-       QueueUrl: "http://localhost:9324/queue/TestQ"
-  };
-
-  sqs.sendMessage(params, function(err, data) {
-    if (err) {
-      console.log("Error", err);
-    } else {
-      console.log("Success", data.MessageId);
-    }
-
-    const response = {
-        statusCode: 200,
-        body: JSON.stringify({
-          message: data,
-        })
-    }
-
-    callback(null, response)
-  });
-}
-
-export async function testGetSQS(event, context, callback) {
-  console.log("DBBBBB")
-  console.log(event)
-  const response = {
-        statusCode: 200,
-        body: JSON.stringify({
-            message: 'SQS event processed.',
-            input: event,
-        }),
-    };
-
-  console.log('event: ', JSON.stringify(event.body));
-
-  // var body = event.Records[0].body;
-  console.log("text: ", JSON.parse(body).text);
-
-  callback(null, response);
-}
 
 // vcStateUpdate from http request added to database
 export async function vcStateUpdate(event, context, callback) {
@@ -113,20 +56,17 @@ export async function vcStateUpdate(event, context, callback) {
       const e: VCStateUpdateInstance = await models.VCStateUpdate.create(
         vcUpdate
       );
+
+      callback(null, {
+        statusCode: 200,
+        headers: {
+          "x-custom-header" : "My Header Value"
+        },
+        body: JSON.stringify(e)
+      });
     } catch(error) {
       console.log(error)
     }
-
-    // What should this response actually be?
-    const response = {
-      statusCode: 200,
-      headers: {
-        "x-custom-header" : "My Header Value"
-      },
-      body: JSON.stringify(event.body)
-    };
-
-    callback(null, response);
 };
 
 // export async function cosignStateUpdate(event, context, callback) {
@@ -230,10 +170,10 @@ export async function catchEvents (event, context, callback) {
   }
 }
 
-// disputeWithEvent receives an event from ContractEvents Queue,
+// challengeEvent receives an event from ContractEvents Queue,
 // checks if a higher nonce state update exists for that virtual channel,
 // and then makes a dispute on chain if one does exist
-export async function disputeWithEvent(message, context, callback) {
+export async function challengeEvent(message, context, callback) {
   console.log(message)
   // console.log("event body: " + event.Body)
   const dispute = JSON.parse(message.Body)
@@ -279,75 +219,6 @@ export async function disputeWithEvent(message, context, callback) {
   } catch (error) {
     console.log(error)
   }
-}
-
-// flagEvents checks db for relevant events and makes dispute if higher nonced vcstateupdate
-export async function flagEvents(event, context, callback) {
-  // dependencies work as expected
-  console.log(_.VERSION);
-
-  // just for testing, will be passed params from queue
-  var lastBlock = 0;
-
-  // read blockchain db for events where:
-  const foundEvents: ContractEventInstance[] = await models.ContractEvent.findAll({
-    where: {
-      blockNumber: {
-        [op.gt]: lastBlock
-      },
-      eventType: {
-        [op.or]: ["DidLCUpdateState", "DidVCSettle"]
-      }
-    }
-  });
-
-  // for each event found in eventDB, check for higher nonce state update
-  for (var i = 0; i < foundEvents.length; i++) {
-    var update = null
-    try {
-      update = JSON.parse(foundEvents[i].dataValues.fields).returnValues
-    } catch { continue }
-
-    if (update != null) {
-      // query VCStateUpdate DB for higher nonce state update of this event type
-      var proof: VCStateUpdateInstance = await models.VCStateUpdate.findOne({
-        where: { // get max cosigned update with nonce > event.nonce
-          vcid: {
-            [op.eq]: foundEvents[i].dataValues.vcid
-          },
-          nonce: {
-            [op.gt]: foundEvents[i].dataValues.nonce
-          },
-          eventType: {
-            [op.eq]: foundEvents[i].dataValues.eventType
-          }
-        }
-      })
-      if (proof != null) {
-        // submit proof
-        const eventType = proof.dataValues.eventType
-        proof = JSON.parse(proof.dataValues.fields)
-        proof.eventType = eventType
-        proof.lcid = update.lcid
-        proof.balanceA = update.balanceA
-        proof.balanceB = update.balanceB
-        disputeWithProof(proof) // call contract at proof and construct proof and submit on chain
-      } else {
-        console.log("errr")
-      }
-    }
-  }
-
-  // what should this response be?
-  const response = {
-    statusCode: 200,
-    body: JSON.stringify({
-      message: JSON.stringify(foundEvents),
-      input: event
-    })
-  };
-
-  callback(null, response);
 }
 
 // disputeWithProof challenges with higher nonce state update

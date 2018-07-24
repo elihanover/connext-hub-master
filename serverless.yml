@@ -43,31 +43,8 @@ provider:
 
 functions:
   # GET FUNCTIONS
-  hello:
-    handler: handler.hello
-    events:
-      - http:
-          path: hello
-          method: get
-          cors: true
-  # check database for transactions and print result
-  testget:
-    handler: handler.testget
-    events:
-      - http:
-          path: testget
-          method: get
-          cors: true
-  #
-  flagEvents:
-    handler: handler.flagEvents
-    events:
-      - http:
-          path: flagEvents
-          method: get
-          cors: true
-  disputeWithEvent:
-    handler: handler.disputeWithEvent
+  challengeEvent:
+    handler: handler.challengeEvent
     events:
       - sqs:
           batchSize: 1
@@ -75,7 +52,7 @@ functions:
             Fn::GetAtt:
               - ContractEventQueue
               - Arn
-  lambdaOne:
+  catchEvents:
     handler: handler.catchEvents
     events:
       - http:
@@ -104,28 +81,9 @@ functions:
           method: post
           cors: true
 
-  testSendSQS:
-    handler: handler.testSendSQS
-    events:
-      - http: get testSendSQS
-
-  testGetSQS:
-    handler: handler.testGetSQS
-    events:
-      - sqs:
-          batchSize: 1
-          arn:
-            Fn::GetAtt:
-              - TestQ
-              - Arn
-
 resources:
   Resources:
     ContractEventQueue:
       Type: "AWS::SQS::Queue"
       Properties:
         QueueName: "ContractEventQueue"
-    TestQ:
-      Type: "AWS::SQS::Queue"
-      Properties:
-        QueueName: "TestQ"
