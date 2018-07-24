@@ -3,7 +3,7 @@ service: serverless-example
 plugins:
   - serverless-plugin-typescript
   - serverless-offline
-  # - serverless-sqs-local # local testing guy
+  - serverless-sqs-local # local testing guy
   # - serverless-offline-localstack # for localstack
 
 # custom:
@@ -29,17 +29,17 @@ provider:
   name: aws
   runtime: nodejs6.10
   # aws queue
-  # region: us-east-2
-  # iamRoleStatements:
-  #   - Effect: "Allow"
-  #     Action:
-  #       - "sqs:SendMessage"
-  #       - "sqs:GetQueueUrl"
-  #     Resource: "arn:aws:sqs:us-east-2:626689416502:EventQueue"
-  #   - Effect: "Allow"
-  #     Action:
-  #       - "sqs:ListQueues"
-  #     Resource: "arn:aws:sqs:us-east-2:626689416502:EventQueue"
+  region: us-east-2
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "sqs:SendMessage"
+        - "sqs:GetQueueUrl"
+      Resource: "arn:aws:sqs:${self:provider.region}:626689416502:TestQ"
+    - Effect: "Allow"
+      Action:
+        - "sqs:ListQueues"
+      Resource: "arn:aws:sqs:${self:provider.region}:TestQ"
 
 functions:
   # GET FUNCTIONS
@@ -66,6 +66,15 @@ functions:
           path: flagEvents
           method: get
           cors: true
+  disputeWithEvent:
+    handler: handler.disputeWithEvent
+    events:
+      - sqs:
+          batchSize: 1
+          arn:
+            Fn::GetAtt:
+              - ContractEventQueue
+              - Arn
   lambdaOne:
     handler: handler.catchEvents
     events:
@@ -95,11 +104,28 @@ functions:
           method: post
           cors: true
 
-  # testSQS:
-  #   handler: handler.testSQS
-  #   events:
-  #     - sqs:
-  #         arn:
-  #           Fn::GetAtt:
-  #             - EventQueue
-  #             - Arn
+  testSendSQS:
+    handler: handler.testSendSQS
+    events:
+      - http: get testSendSQS
+
+  testGetSQS:
+    handler: handler.testGetSQS
+    events:
+      - sqs:
+          batchSize: 1
+          arn:
+            Fn::GetAtt:
+              - TestQ
+              - Arn
+
+resources:
+  Resources:
+    ContractEventQueue:
+      Type: "AWS::SQS::Queue"
+      Properties:
+        QueueName: "ContractEventQueue"
+    TestQ:
+      Type: "AWS::SQS::Queue"
+      Properties:
+        QueueName: "TestQ"

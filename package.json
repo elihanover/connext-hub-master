@@ -33,6 +33,7 @@
     "pg-hstore": "^2.3.2",
     "sequelize": "^4.38.0",
     "serverless-dynamodb-local": "^0.2.30",
+    "sqs-consumer": "^3.8.0",
     "uuid": "^3.3.2",
     "web3": "^1.0.0-beta.34"
   }

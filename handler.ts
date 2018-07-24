@@ -16,6 +16,88 @@ const fs = require('fs') // for reading contract abi
 var Web3 = require('web3')
 var web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
 
+
+var AWS = require('aws-sdk')
+const Consumer = require('sqs-consumer'); // for offline queue events
+
+var myCredentials = new AWS.Credentials("x", "x");
+
+var sqs = new AWS.SQS({
+    apiVersion: '2012-11-05',
+    credentials: myCredentials,
+    region: "none",
+    endpoint: "http://localhost:9324"
+});
+
+const app = Consumer.create({
+  queueUrl: 'http://localhost:9324/queue/ContractEventQueue',
+  handleMessage: (message, done) => {
+    disputeWithEvent(message)
+    done();
+  },
+  sqs: sqs
+});
+
+app.on('error', (err) => {
+  console.log(err.message);
+});
+
+app.start();
+
+export async function testSendSQS(event, context, callback) {
+  var params = {
+       DelaySeconds: 10,
+       MessageAttributes: {
+        "ContractEvent": {
+          DataType: "String",
+          StringValue: "InitVCState"
+         },
+         "Blocknumber": {
+           DataType: "String",
+           StringValue: "6"
+         }
+       },
+       MessageBody: "testtest",
+       QueueUrl: "http://localhost:9324/queue/TestQ"
+  };
+
+  sqs.sendMessage(params, function(err, data) {
+    if (err) {
+      console.log("Error", err);
+    } else {
+      console.log("Success", data.MessageId);
+    }
+
+    const response = {
+        statusCode: 200,
+        body: JSON.stringify({
+          message: data,
+        })
+    }
+
+    callback(null, response)
+  });
+}
+
+export async function testGetSQS(event, context, callback) {
+  console.log("DBBBBB")
+  console.log(event)
+  const response = {
+        statusCode: 200,
+        body: JSON.stringify({
+            message: 'SQS event processed.',
+            input: event,
+        }),
+    };
+
+  console.log('event: ', JSON.stringify(event.body));
+
+  // var body = event.Records[0].body;
+  console.log("text: ", JSON.parse(body).text);
+
+  callback(null, response);
+}
+
 // vcStateUpdate from http request added to database
 export async function vcStateUpdate(event, context, callback) {
     const update = JSON.parse(event.body)
@@ -107,7 +189,7 @@ export async function catchEvents (event, context, callback) {
     console.log(error)
   }
 
-  const contractAddress = "0xa6bc3e6b78684025428a530a1f14358daf2c7305"
+  const contractAddress = "0x95adaa688252b8bb1af0860ac1e6af7774ef1385"
   const contract = JSON.parse(fs.readFileSync('LedgerChannel.json', 'utf8'))
   const eventFinder = new web3.eth.Contract(contract.abi, contractAddress)
 
@@ -117,26 +199,12 @@ export async function catchEvents (event, context, callback) {
     fromBlock: blockNumber,
     toBlock: "latest"
   }, function(error, events){ console.log(events) })
-  .then(async function(events){
+  .then(async function(events) {
     // Add each of these events to the ContractEvents database
+    /// Add each of these events to ContractEvents Queue
     for (var i in events){
-      const eventAttrs: ContractEventAttributes = {
-        contract: contractAddress,
-        ts: Date.now(),
-        blockNumber: events[i].blockNumber,
-        isValidBlock: true, // ¿¿ just assume true ??
-        sender: "0x?", // ¿¿ who is sender and why keep track of sender ??
-        eventType: "DidVCSettle",
-        fields: JSON.stringify(events[i])
-      };
-
-      try {
-        const e: ContractEventInstance = await models.ContractEvent.create(
-          eventAttrs
-        );
-      } catch (error) {
-        console.log(error)
-      }
+      // Format and send SQS message
+      sqsMessageFrom(events[i])
     }
   })
 
@@ -160,18 +228,59 @@ export async function catchEvents (event, context, callback) {
   } catch (error) {
     console.log(error)
   }
-
-  // What should response be?
-  const response = {
-    statusCode: 200,
-    body: JSON.stringify({
-      message: "Created a DB entry.",
-    })
-  };
-  callback(null, response);
 }
 
-// WILL BE TRIGGERED BY QUEUE
+// disputeWithEvent receives an event from ContractEvents Queue,
+// checks if a higher nonce state update exists for that virtual channel,
+// and then makes a dispute on chain if one does exist
+export async function disputeWithEvent(message, context, callback) {
+  console.log(message)
+  // console.log("event body: " + event.Body)
+  const dispute = JSON.parse(message.Body)
+  const eventFields = JSON.parse(dispute.fields.StringValue)
+
+  console.log(JSON.stringify(eventFields, null, 4))
+  console.log("vcid: " + eventFields.returnValues.vcId)
+  console.log("updateSeq: " + eventFields.returnValues.updateSeq)
+  console.log("event: " + eventFields.event)
+  try {
+    // (1) look into DB for higher nonce vcstateupdate
+    var proof: VCStateUpdateInstance = await models.VCStateUpdate.findOne({
+      where: { // get max cosigned update with nonce > event.nonce
+        vcid: {
+          [op.eq]: eventFields.returnValues.vcId
+        },
+        nonce: {
+          [op.gt]: eventFields.returnValues.updateSeq
+        },
+        eventType: {
+          [op.eq]: eventFields.event
+        }
+      }
+    })
+
+    // (2) if there is a proof, submit that
+    if (proof) {
+      // format and submit proof
+      console.log("PROOF:" + proof)
+      const eventType = proof.dataValues.eventType
+      const vcid = proof.dataValues.vcid
+      proof = JSON.parse(proof.dataValues.fields)
+      proof.vcid = vcid
+      proof.eventType = eventType
+      proof.lcid = eventFields.returnValues.lcId
+      proof.partyA = eventFields.returnValues.partyA
+      proof.partyB = eventFields.returnValues.partyB
+      console.log("PROOF':" + JSON.stringify(proof, null, 4))
+      disputeWithProof(proof)
+    } else {
+      console.log("NO PROOF")
+    }
+  } catch (error) {
+    console.log(error)
+  }
+}
+
 // flagEvents checks db for relevant events and makes dispute if higher nonced vcstateupdate
 export async function flagEvents(event, context, callback) {
   // dependencies work as expected
@@ -188,7 +297,7 @@ export async function flagEvents(event, context, callback) {
       },
       eventType: {
         [op.or]: ["DidLCUpdateState", "DidVCSettle"]
-      },
+      }
     }
   });
 
@@ -243,7 +352,8 @@ export async function flagEvents(event, context, callback) {
 
 // disputeWithProof challenges with higher nonce state update
 async function disputeWithProof(proof) {
-  const contractAddress = "0xa6bc3e6b78684025428a530a1f14358daf2c7305"
+  console.log("proof: " + proof)
+  const contractAddress = "0x95adaa688252b8bb1af0860ac1e6af7774ef1385"
   const contract = JSON.parse(fs.readFileSync('LedgerChannel.json', 'utf8'));
   const ChannelManager = new web3.eth.Contract(contract.abi, contractAddress)
 
@@ -276,5 +386,49 @@ async function disputeWithProof(proof) {
       )
     })
   }
+}
 
+// createSQSMessageFrom constructs an SQS message from a blockchain event
+async function sqsMessageFrom(event) {
+  const attributes = JSON.stringify({
+    "ts": {
+      DataType: "String",
+      StringValue: String(Date.now())
+    },
+    "blockNumber": {
+      DataType: "String",
+      StringValue: String(event.blockNumber)
+    },
+    "isValidBlock": {
+      DataType: "Binary",
+      BinaryValue: "true"
+    },
+    "sender": {
+      DataType: "String",
+      StringValue: "N/A"
+    },
+    "eventType": {
+      DataType: "String",
+      StringValue: String(event.event)
+    },
+    "fields": {
+      DataType:  "String",
+      StringValue: JSON.stringify(event)
+    }
+  })
+  const params = {
+     DelaySeconds: 5,
+     MessageAttributes: null,
+     MessageBody: attributes,
+     QueueUrl: "http://localhost:9324/queue/ContractEventQueue"
+  };
+
+  // Send message to SQS ContractEvent queue
+  sqs.sendMessage(params, function(err, data) {
+    if (err) {
+      console.log("Error", err);
+    } else {
+      console.log("Success", data.MessageId);
+    }
+  })
 }
