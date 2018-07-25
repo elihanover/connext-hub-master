@@ -44,7 +44,7 @@ export default function(
         allowNull: false
       },
       eventType: {
-        type: dataTypes.STRING,
+        type: dataTypes.ENUM("DidVCSettle", "DidLCUpdateState"),
         allowNull: false
       },
       fields: {
