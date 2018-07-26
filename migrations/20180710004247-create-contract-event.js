@@ -24,7 +24,7 @@ module.exports = {
         type: Sequelize.STRING
       },
       eventType: {
-        type: Sequelize.STRING
+        type: Sequelize.ENUM("DidVCSettle", "DidLCUpdateState")
       },
       fields: {
         type: Sequelize.JSONB
