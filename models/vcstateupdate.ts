@@ -9,10 +9,6 @@ function default_1(sequelize, dataTypes) {
             primaryKey: true,
             type: dataTypes.INTEGER
         },
-        ts: {
-            type: dataTypes.BIGINT,
-            allowNull: false
-        },
         eventType: {
             type: dataTypes.STRING,
             allowNull: false
@@ -25,8 +21,16 @@ function default_1(sequelize, dataTypes) {
             type: dataTypes.INTEGER,
             allowNull: false
         },
-        fields: {
-            type: dataTypes.JSONB,
+        balanceA: {
+            type: dataTypes.INTEGER,
+            allowNull: false
+        },
+        balanceB: {
+            type: dataTypes.INTEGER,
+            allowNull: false
+        },
+        sig: {
+            type: dataTypes.STRING,
             allowNull: false
         },
         createdAt: {

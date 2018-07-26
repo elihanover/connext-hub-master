@@ -9,9 +9,6 @@ module.exports = {
         primaryKey: true,
         type: Sequelize.INTEGER
       },
-      ts: {
-        type: Sequelize.BIGINT
-      },
       eventType: {
         type: Sequelize.STRING
       },
@@ -21,8 +18,14 @@ module.exports = {
       nonce: {
         type: Sequelize.INTEGER
       },
-      fields: {
-        type: Sequelize.JSONB
+      balanceA: {
+          type: Sequelize.INTEGER
+      },
+      balanceB: {
+          type: Sequelize.INTEGER
+      },
+      sig: {
+        type: Sequelize.STRING
       },
       createdAt: {
         allowNull: false,

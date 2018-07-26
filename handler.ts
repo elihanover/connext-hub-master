@@ -45,11 +45,12 @@ app.start();
 export async function vcStateUpdate(event, context, callback) {
     const update = JSON.parse(event.body)
     const vcUpdate: VCStateUpdateAttributes = {
-      ts: Date.now(),
       eventType: "DidVCSettle",
       vcid: event.pathParameters.vcid,
       nonce: update.nonce,
-      fields: JSON.stringify(update)
+      balanceA: update.balanceA,
+      balanceB: update.balanceB,
+      sig: update.sig
     };
 
     try {
@@ -174,7 +175,6 @@ export async function catchEvents (event, context, callback) {
 // checks if a higher nonce state update exists for that virtual channel,
 // and then makes a dispute on chain if one does exist
 export async function challengeEvent(message, context, callback) {
-  console.log(message)
   // console.log("event body: " + event.Body)
   const dispute = JSON.parse(message.Body)
   const eventFields = JSON.parse(dispute.fields.StringValue)
@@ -202,15 +202,11 @@ export async function challengeEvent(message, context, callback) {
     // (2) if there is a proof, submit that
     if (proof) {
       // format and submit proof
-      console.log("PROOF:" + proof)
-      const eventType = proof.dataValues.eventType
-      const vcid = proof.dataValues.vcid
-      proof = JSON.parse(proof.dataValues.fields)
-      proof.vcid = vcid
-      proof.eventType = eventType
+      proof = proof.dataValues
       proof.lcid = eventFields.returnValues.lcId
       proof.partyA = eventFields.returnValues.partyA
       proof.partyB = eventFields.returnValues.partyB
+
       console.log("PROOF':" + JSON.stringify(proof, null, 4))
       disputeWithProof(proof)
     } else {
