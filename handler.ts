@@ -288,7 +288,7 @@ async function sqsMessageFrom(event) {
      DelaySeconds: 5,
      MessageAttributes: null,
      MessageBody: attributes,
-     QueueUrl: "http://localhost:9324/queue/ContractEventQueue"
+     QueueUrl: process.env.SQS_URL
   };
 
   // Send message to SQS ContractEvent queue
