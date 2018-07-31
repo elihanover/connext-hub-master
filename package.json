@@ -29,6 +29,7 @@
   "dependencies": {
     "aws-sdk": "^2.267.1",
     "continuation-local-storage": "^3.2.1",
+    "dotenv": "^6.0.0",
     "pg": "^7.4.3",
     "pg-hstore": "^2.3.2",
     "sequelize": "^4.38.0",

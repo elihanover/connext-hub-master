@@ -5,12 +5,13 @@ import {
   VCStateUpdateAttributes,
   VCStateUpdateInstance,
 } from "./models/interfaces/vcstateupdate-interface";
+require('dotenv').config()
 const Sequelize = require('sequelize');
 const op = Sequelize.Op;
 const fs = require('fs') // for reading contract abi
 // web3 = new Web3(Web3.givenProvider || new Web3.providers.WebsocketProvider("wss://rinkeby.infura.io/_ws")) // connect using websockets
 var Web3 = require('web3')
-var web3 = new Web3(new Web3.providers.HttpProvider('http://localhost:8545'));
+var web3 = new Web3(new Web3.providers.HttpProvider(process.env.WEB3));
 
 
 var AWS = require('aws-sdk')
@@ -22,11 +23,11 @@ var sqs = new AWS.SQS({
     apiVersion: '2012-11-05',
     credentials: myCredentials,
     region: "none",
-    endpoint: "http://localhost:9324"
+    endpoint: process.env.SQS_ENDPOINT
 });
 
 const app = Consumer.create({
-  queueUrl: 'http://localhost:9324/queue/ContractEventQueue',
+  queueUrl: process.env.SQS_URL,
   handleMessage: (message, done) => {
     challengeEvent(message)
     done();
@@ -130,7 +131,7 @@ export async function catchEvents (event, context, callback) {
     console.log(error)
   }
 
-  const contractAddress = "0x339b8c36eb1eb942e88a1600c31269bb8561212c"
+  const contractAddress = process.env.CONTRACT_ADDRESS
   const contract = JSON.parse(fs.readFileSync('LedgerChannel.json', 'utf8'))
   const eventFinder = new web3.eth.Contract(contract.abi, contractAddress)
 
@@ -220,7 +221,7 @@ export async function challengeEvent(message, context, callback) {
 // disputeWithProof challenges with higher nonce state update
 async function disputeWithProof(proof) {
   console.log("proof: " + proof)
-  const contractAddress = "0x95adaa688252b8bb1af0860ac1e6af7774ef1385"
+  const contractAddress = process.env.CONTRACT_ADDRESS
   const contract = JSON.parse(fs.readFileSync('LedgerChannel.json', 'utf8'));
   const ChannelManager = new web3.eth.Contract(contract.abi, contractAddress)
 
@@ -249,7 +250,7 @@ async function disputeWithProof(proof) {
         proof.balanceB,
         sigA
       ).send(
-        {from: "0x3ad3e0608f59d34cc4f7617d4f5e1abc6c196e50"}  // test address
+        {from: process.env.SENDER_ADDRESS}  // test address
       )
     })
   }
