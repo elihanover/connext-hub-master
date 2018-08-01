@@ -2,11 +2,11 @@ const Sequelize = require("sequelize");
 
 export default async function() {
   const sequelize = new Sequelize({
-    host: "localhost",
-    database: "transactions",
+    host: "localhost", // TODO: change this to AWS postgres db
+    database: "transactiondb",
     dialect: "postgres",
-    username: "postgres",
-    password: "connext"
+    username: "connext",
+    password: "postgres"
   });
 
   await sequelize.authenticate();

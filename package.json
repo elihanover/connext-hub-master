@@ -32,10 +32,12 @@
     "dotenv": "^6.0.0",
     "pg": "^7.4.3",
     "pg-hstore": "^2.3.2",
+    "scrypt": "^6.0.3",
     "sequelize": "^4.38.0",
     "serverless-dynamodb-local": "^0.2.30",
     "sqs-consumer": "^3.8.0",
     "uuid": "^3.3.2",
     "web3": "^1.0.0-beta.34"
-  }
+  },
+  "install": "[ -e node_modules/sharp/build/Release/script.node ] || docker run --rm -v $PWD:/data -w /data node:8 npm install scrypt"
 }

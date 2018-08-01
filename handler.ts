@@ -9,40 +9,21 @@ require('dotenv').config()
 const Sequelize = require('sequelize');
 const op = Sequelize.Op;
 const fs = require('fs') // for reading contract abi
-// web3 = new Web3(Web3.givenProvider || new Web3.providers.WebsocketProvider("wss://rinkeby.infura.io/_ws")) // connect using websockets
 var Web3 = require('web3')
-var web3 = new Web3(new Web3.providers.HttpProvider(process.env.WEB3));
-
-
+// web3 = new Web3(Web3.givenProvider || new Web3.providers.WebsocketProvider("wss://rinkeby.infura.io/_ws"))
+var web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/v3/a81caafee3aa481ea334e50bb1826326"))
 var AWS = require('aws-sdk')
-const Consumer = require('sqs-consumer'); // for offline queue events
 
-var myCredentials = new AWS.Credentials("x", "x");
+// var myCredentials = new AWS.Credentials(process.env.AWS_KEY, process.env.AWS_SECRET_KEY)
 
 var sqs = new AWS.SQS({
-    apiVersion: '2012-11-05',
-    credentials: myCredentials,
-    region: "none",
+    // apiVersion: '2012-11-05',
+    // credentials: myCredentials,
+    // region: "none",
     endpoint: process.env.SQS_ENDPOINT
 });
 
-const app = Consumer.create({
-  queueUrl: process.env.SQS_URL,
-  handleMessage: (message, done) => {
-    challengeEvent(message)
-    done();
-  },
-  sqs: sqs
-});
-
-app.on('error', (err) => {
-  console.log(err.message);
-});
-
-app.start();
-
-
-// vcStateUpdate from http request added to database
+// Add vcStateUpdate from http request to postgres db
 export async function vcStateUpdate(event, context, callback) {
     const update = JSON.parse(event.body)
     const vcUpdate: VCStateUpdateAttributes = {
@@ -71,75 +52,44 @@ export async function vcStateUpdate(event, context, callback) {
     }
 };
 
-// export async function cosignStateUpdate(event, context, callback) {
-//   const msg = JSON.parse(event.body)
+// TODO: handle lcStateUpdate function
+// export async function lcStateUpdate(event, context, callback) {
 //
-//   // update the vcstateupdate on channel c with nonce n
-//   try {
-//     const e: VCStateUpdateInstance = await models.VCStateUpdate.update(
-//       {sigA: msg.sig},
-//       {
-//         where: {
-//           nonce: {
-//             [op.eq]: msg.nonce
-//           },
-//           sigA: {
-//             [op.eq]: null
-//           }
-//         }
-//       }
-//     )
-//   } catch (error) {
-//     console.log(error)
-//   }
-//
-//   // update the vcstateupdate on channel c with nonce n
-//   try {
-//     const e: VCStateUpdateInstance = await models.VCStateUpdate.update(
-//       {sigB: msg.sig},
-//       {
-//         where: {
-//           nonce: {
-//             [op.eq]: msg.nonce
-//           },
-//           sigB: {
-//             [op.eq]: null
-//           }
-//         }
-//       }
-//     )
-//   } catch (error) {
-//     console.log(error)
-//   }
 // }
 
 // catchEvents gets hub contract events and stores them in ContractEvents DB
 export async function catchEvents (event, context, callback) {
-  var blockNumber = -1
+  var lastBlock = -1 // TODO: what do we want for production??
 
   // get blockNumber of last polled block from LastBlock table
   try {
-    blockNumber = await models.LastBlock.findOne({
+    lastBlock = await models.LastBlock.findOne({
       where: {
         lastBlock: {
           [op.ne]: null
         }
       }
     });
-    blockNumber = blockNumber.dataValues.lastBlock
+    lastBlock = lastBlock.dataValues.lastBlock
   } catch (error) {
     console.log(error)
   }
 
+  // get most recent block
+  var blockNumber = await web3.eth.getBlockNumber(function(err, res) {
+    return res
+  })
+
   const contractAddress = process.env.CONTRACT_ADDRESS
-  const contract = JSON.parse(fs.readFileSync('LedgerChannel.json', 'utf8'))
+  // const contract = JSON.parse(fs.readFileSync(process.env.CONTRACT_JSON, 'utf8'))
+  const contract = process.env.CONTRACT_JSON
   const eventFinder = new web3.eth.Contract(contract.abi, contractAddress)
 
   // Query contract for DidVCSettle events between last block checked and now
   eventFinder.getPastEvents("DidVCSettle", {
     filter: {},
-    fromBlock: blockNumber,
-    toBlock: "latest"
+    fromBlock: lastBlock,
+    toBlock: blockNumber
   }, function(error, events){ console.log(events) })
   .then(async function(events) {
     // Add each of these events to the ContractEvents database
@@ -150,10 +100,8 @@ export async function catchEvents (event, context, callback) {
     }
   })
 
-  // update last block checked
-  blockNumber = await web3.eth.getBlockNumber(function(err, res) {
-    return res
-  })
+  // TODO: add the same functionality for lcstateupdate
+
 
   // update LastBlock table to hold lastest polled block
   try {
@@ -288,7 +236,7 @@ async function sqsMessageFrom(event) {
      DelaySeconds: 5,
      MessageAttributes: null,
      MessageBody: attributes,
-     QueueUrl: "http://localhost:9324/queue/ContractEventQueue"
+     QueueUrl: process.env.SQS_URL
   };
 
   // Send message to SQS ContractEvent queue

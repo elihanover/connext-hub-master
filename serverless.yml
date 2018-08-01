@@ -30,21 +30,26 @@ provider:
   runtime: nodejs6.10
   # aws queue
   region: us-east-2
-  iamRoleStatements:
-    - Effect: "Allow"
-      Action:
-        - "sqs:SendMessage"
-        - "sqs:GetQueueUrl"
-      Resource: "arn:aws:sqs:${self:provider.region}:626689416502:TestQ"
-    - Effect: "Allow"
-      Action:
-        - "sqs:ListQueues"
-      Resource: "arn:aws:sqs:${self:provider.region}:TestQ"
+  # iamRoleStatements:
+  #   - Effect: "Allow"
+  #     Action:
+  #       - "sqs:SendMessage"
+  #       - "sqs:GetQueueUrl"
+  #     Resource: "arn:aws:sqs:${self:provider.region}:626689416502:TestQ"
+  #   - Effect: "Allow"
+  #     Action:
+  #       - "sqs:ListQueues"
+  #     Resource: "arn:aws:sqs:${self:provider.region}:TestQ"
+
+package:
+  excludeDevDependencies: true
 
 functions:
   # GET FUNCTIONS
   challengeEvent:
     handler: handler.challengeEvent
+    environment:
+      CONTRACT_JSON: ${file(LedgerChannel.json)}
     events:
       - sqs:
           batchSize: 1
