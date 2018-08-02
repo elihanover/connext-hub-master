@@ -25,7 +25,7 @@ var sqs = new AWS.SQS({
 
 // Add vcStateUpdate from http request to postgres db
 export async function vcStateUpdate(event, context, callback) {
-    const update = JSON.parse(event.body)
+    const update = JSON.parse("Event: "+ event.body)
     const vcUpdate: VCStateUpdateAttributes = {
       eventType: "DidVCSettle",
       vcid: event.pathParameters.vcid,
@@ -34,6 +34,7 @@ export async function vcStateUpdate(event, context, callback) {
       balanceB: update.balanceB,
       sig: update.sig
     };
+    console.log("vcUpdate: " + vcUpdate)
 
     try {
       const e: VCStateUpdateInstance = await models.VCStateUpdate.create(
@@ -45,7 +46,7 @@ export async function vcStateUpdate(event, context, callback) {
         headers: {
           "x-custom-header" : "My Header Value"
         },
-        body: JSON.stringify(e)
+        body: "databased returned: " + JSON.stringify(e)
       });
     } catch(error) {
       console.log(error)
@@ -59,7 +60,7 @@ export async function vcStateUpdate(event, context, callback) {
 
 // catchEvents gets hub contract events and stores them in ContractEvents DB
 export async function catchEvents (event, context, callback) {
-  var lastBlock = -1 // TODO: what do we want for production??
+  var lastBlock = 0 // TODO: what do we want for production??
 
   // get blockNumber of last polled block from LastBlock table
   try {
@@ -74,15 +75,18 @@ export async function catchEvents (event, context, callback) {
   } catch (error) {
     console.log(error)
   }
+  console.log("LastBlock: " + lastBlock)
 
   // get most recent block
   var blockNumber = await web3.eth.getBlockNumber(function(err, res) {
     return res
   })
+  console.log("Blocknumber: "+ blockNumber)
 
   const contractAddress = process.env.CONTRACT_ADDRESS
-  // const contract = JSON.parse(fs.readFileSync(process.env.CONTRACT_JSON, 'utf8'))
-  const contract = process.env.CONTRACT_JSON
+  console.log("Contract Address: " + contractAddress)
+  const contract = JSON.parse(fs.readFileSync(__dirname + '/LedgerChannel.json', 'utf8'))
+  // const contract = process.env.CONTRACT_JSON
   const eventFinder = new web3.eth.Contract(contract.abi, contractAddress)
 
   // Query contract for DidVCSettle events between last block checked and now
@@ -95,10 +99,12 @@ export async function catchEvents (event, context, callback) {
     // Add each of these events to the ContractEvents database
     /// Add each of these events to ContractEvents Queue
     for (var i in events){
+      console.log(event[i])
       // Format and send SQS message
       sqsMessageFrom(events[i])
     }
   })
+  console.log("Done with events.")
 
   // TODO: add the same functionality for lcstateupdate
 

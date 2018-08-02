@@ -43,13 +43,14 @@ provider:
 
 package:
   excludeDevDependencies: true
+  include:
+    - LedgerChannel.json
+    - .env
 
 functions:
   # GET FUNCTIONS
   challengeEvent:
     handler: handler.challengeEvent
-    environment:
-      CONTRACT_JSON: ${file(LedgerChannel.json)}
     events:
       - sqs:
           batchSize: 1
