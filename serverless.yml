@@ -117,13 +117,24 @@ resources:
       Type: "AWS::SQS::Queue"
       Properties:
         QueueName: "ContractEventQueue"
-    WatcherDb:
-      Type: AWS::RDS::DBInstance
+    EventTable:
+      Type: AWS::DynamoDB::Table
       Properties:
-        Engine: Postgres
-        DBInstanceIdentifier: watcherdb
-        DBName: WatcherDB
-        MasterUsername: connext
-        MasterUserPassword: whydidiputmybabyinthoseballoons
-        DBInstanceClass: db.m4.large # TODO: ¿say whaat?
-        AllocatedStorage: 10 # TODO: ¿Say whaat??
+          TableName: eventTable
+          AttributeDefinitions:
+            - AttributeName: eventType
+              AttributeType: S
+            - AttributeName: blockNumber
+              AttributeType: I
+            - AttributeName: fields
+              AttributeType: #???
+          KeySchema:
+            - AttributeName: eventType
+              KeyType: HASH
+            - AttributeName: blockNumber
+              KeyType: HASH
+            - AttributeName: fields
+              KeyType: HASH
+          ProvisionedThroughput:
+            ReadCapacityUnits: 1
+            WriteCapacityUnits: 1
