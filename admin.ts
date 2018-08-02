@@ -16,24 +16,16 @@ export async function setLastBlock(event, context, callback) {
   console.log("Set lastblock: " + event.pathParameters.block)
   try {
     console.log("BANG")
-    // docClient.put({
-    //   TableName: "LastBlock",
-    //   Item: {
-    //     lastBlock: {'N': event.pathParameters.block}
-    //   }
-    // })
-    try {
-      docClient.put({
-        TableName: "LastBlock",
-        Item: {
-          "lastBlock": {
-            N: event.pathParameters.block
-          }
-        }
-      })
-    } catch (AmazonServiceException a) {
-      console.log(a)
-    }
+    docClient.put({
+      TableName: "LastBlock",
+      Item: {
+        lastBlock: parseInt(event.pathParameters.block)
+      }
+    }, function(err, data) {
+      if (err) console.log(err, err.stack)
+      else console.log(data)
+    })
+
     console.log("BOOM")
     callback(null, {
       statusCode: 200,

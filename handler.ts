@@ -63,19 +63,39 @@ export async function vcStateUpdate(event, context, callback) {
 export async function catchEvents (event, context, callback) {
   var lastBlock = 0 // TODO: what do we want for production??
 
-  // get blockNumber of last polled block from LastBlock table
   try {
-    lastBlock = await models.LastBlock.findOne({
-      where: {
-        lastBlock: {
-          [op.ne]: null
-        }
+    console.log("BANG")
+    docClient.query({
+      TableName: "LastBlock",
+      FilterExpression: '#lb gt :b',
+      ExpressionAttributeNames: {
+        '#lb': "lastBlock"
+      },
+      ExpressionAttributeValues: {
+        ':b': 0
       }
+    }, function(err, data) {
+      if (err) console.log(err, err.stack)
+      else {
+        console.log(data)
+        lastBlock = data
+      }
+    })
+
+    console.log("BOOM")
+    callback(null, {
+      statusCode: 200,
+      headers: {
+        "x-custom-header" : "My Header Value"
+      },
+      body: "GOTTTTTEEMMMM"
     });
-    lastBlock = lastBlock.dataValues.lastBlock
-  } catch (error) {
+  }
+  catch (error) {
+    console.log("READ ERROR")
     console.log(error)
   }
+
   console.log("LastBlock: " + lastBlock)
 
   // get most recent block
@@ -111,20 +131,19 @@ export async function catchEvents (event, context, callback) {
 
 
   // update LastBlock table to hold lastest polled block
-  try {
-    await models.LastBlock.update(
-      {lastBlock: blockNumber},
-      {
-        where: {
-          lastBlock: {
-            [op.ne]: null
-          }
-        }
-      }
-    )
-  } catch (error) {
-    console.log("Last Block Error: " + error)
-  }
+  // TODO: CHANGE TO UPDATE INSTEAD?
+  docClient.put({
+    TableName: "LastBlock",
+    Item: {
+      lastBlock: parseInt(event.pathParameters.block)
+    }
+  }, function(err, data) {
+    if (err) {
+      console.log("UPDATE LAST BLOCK ERROR")
+      console.log(err, err.stack)
+    }
+    else console.log(data)
+  })
 }
 
 // challengeEvent receives an event from ContractEvents Queue,
@@ -141,17 +160,25 @@ export async function challengeEvent(message, context, callback) {
   console.log("event: " + eventFields.event)
   try {
     // (1) look into DB for higher nonce vcstateupdate
-    var proof: VCStateUpdateInstance = await models.VCStateUpdate.findOne({
-      where: { // get max cosigned update with nonce > event.nonce
-        vcid: {
-          [op.eq]: eventFields.returnValues.vcId
-        },
-        nonce: {
-          [op.gt]: eventFields.returnValues.updateSeq
-        },
-        eventType: {
-          [op.eq]: eventFields.event
-        }
+    const proof = null
+    docClient.query({
+      TableName: "VCStateUpdates",
+      FilterExpression: '#n gt :n and #v eq :vcid and #e eq :et',
+      ExpressionAttributeNames: {
+        '#n': "nonce",
+        '#v': "vcId",
+        '#e': "eventType"
+      },
+      ExpressionAttributeValues: {
+        ':n': eventFields.returnValues.updateSeq,
+        ':vcid': eventFields.returnValues.vcId,
+        ':et': eventFields.event
+      }
+    }, function(err, data) {
+      if (err) console.log(err, err.stack)
+      else {
+        console.log(data)
+        proof = data
       }
     })
 
