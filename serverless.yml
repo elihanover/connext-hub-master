@@ -1,4 +1,4 @@
-service: serverless-example
+service: connext-watcher
 
 plugins:
   - serverless-plugin-typescript
@@ -47,6 +47,7 @@ package:
   include:
     - LedgerChannel.json
     - .env
+    - models/**
 
 functions:
   # GET FUNCTIONS
@@ -87,27 +88,6 @@ functions:
           path: chainsaw/request
           method: post
           cors: true
-  # db migrations
-  upVCStateUpdates:
-    handler: migrations/create-vcstateupdate.up
-    timeout: 30
-    environment:
-      DATABASE_URL: postgres://connext:whydidiputmybabyinthoseballoons@domain.rds.amazonaws.com:5432/watcher-db
-  downVCStateUpdates:
-    handler: migrations/create-vcstateupdate.down
-    timeout: 30
-    environment:
-      DATABASE_URL: postgres://connext:whydidiputmybabyinthoseballoons@domain.rds.amazonaws.com:5432/watcher-db
-  upLastBlock:
-    handler: migrations/create-lastBlock.up
-    timeout: 30
-    environment:
-      DATABASE_URL: postgres://connext:whydidiputmybabyinthoseballoons@domain.rds.amazonaws.com:5432/watcher-db
-  downLastBlock:
-    handler: migrations/create-lastBlock.down
-    timeout: 30
-    environment:
-      DATABASE_URL: postgres://connext:whydidiputmybabyinthoseballoons@domain.rds.amazonaws.com:5432/watcher-db
   # admin functions
   setLastBlock:
     handler: admin.setLastBlock
@@ -118,6 +98,17 @@ functions:
           request:
             paths:
               block: true
+  # db migrations
+  up:
+    handler: migrations.up
+    timeout: 30
+    environment:
+      DATABASE_URL: postgres://connext:whydidiputmybabyinthoseballoons@watcherdb.cvrv85edefpy.us-east-2.rds.amazonaws.com:5432/watcherdb
+  down:
+    handler: migrations.down
+    timeout: 30
+    environment:
+      DATABASE_URL: postgres://connext:whydidiputmybabyinthoseballoons@watcherdb.cvrv85edefpy.us-east-2.rds.amazonaws.com:5432/watcherdb
 
 
 resources:
@@ -130,7 +121,7 @@ resources:
       Type: AWS::RDS::DBInstance
       Properties:
         Engine: Postgres
-        DBInstanceIdentifier: watcher-db
+        DBInstanceIdentifier: watcherdb
         DBName: WatcherDB
         MasterUsername: connext
         MasterUserPassword: whydidiputmybabyinthoseballoons
