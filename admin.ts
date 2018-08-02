@@ -1,34 +1,57 @@
-import { models } from './models/index';
-const Sequelize = require('sequelize');
+console.log("-1")
+// import { models } from './models/index';
+console.log("-2")
+// const Sequelize = require('sequelize');
 import { Context, Callback } from "aws-lambda";
+var AWS = require('aws-sdk')
 
+console.log("-3")
+
+const docClient = new AWS.DynamoDB.DocumentClient({
+    region: 'us-east-2',
+    endpoint: 'https://dynamodb.us-east-2.amazonaws.com'
+})
+console.log("-4")
 export async function setLastBlock(event, context, callback) {
   console.log("Set lastblock: " + event.pathParameters.block)
-  var lastBlock = -1
   try {
-    const lastBlock = await models.LastBlock.create({
-      lastBlock: event.pathParameters.block
-    })
-
-    // callback(null, {
-    //   statusCode: 200,
-    //   headers: {
-    //     "x-custom-header" : "My Header Value"
-    //   },
-    //   body: "databased returned: " + JSON.stringify(lastBlock)
-    // });
-
-  } catch (error) {
-    console.log("Didn't work :( " + error)
-
+    console.log("BANG")
+    // docClient.put({
+    //   TableName: "LastBlock",
+    //   Item: {
+    //     lastBlock: {'N': event.pathParameters.block}
+    //   }
+    // })
+    try {
+      docClient.put({
+        TableName: "LastBlock",
+        Item: {
+          "lastBlock": {
+            N: event.pathParameters.block
+          }
+        }
+      })
+    } catch (AmazonServiceException a) {
+      console.log(a)
+    }
+    console.log("BOOM")
     callback(null, {
       statusCode: 200,
       headers: {
-        "x-custom-header" : error
+        "x-custom-header" : "My Header Value"
       },
-      body: "Error: " + lastBlock
+      body: "GOTTTTTEEMMMM"
     });
   }
-
-
+  catch (error) {
+    console.log("EREROR")
+    console.log(error)
+    callback(null, {
+      statusCode: 200,
+      headers: {
+        "x-custom-header" : "My Header Value"
+      },
+      body: "NAAAAH"
+    });
+  }
 }

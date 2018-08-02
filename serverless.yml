@@ -47,7 +47,7 @@ package:
   include:
     - LedgerChannel.json
     - .env
-    - models/**
+    # - models/**
 
 functions:
   # GET FUNCTIONS
@@ -120,20 +120,29 @@ resources:
     EventTable:
       Type: AWS::DynamoDB::Table
       Properties:
-          TableName: eventTable
+          TableName: VCStateUpdates
           AttributeDefinitions:
             - AttributeName: eventType
               AttributeType: S
             - AttributeName: blockNumber
-              AttributeType: I
-            - AttributeName: fields
-              AttributeType: #???
+              AttributeType: N
           KeySchema:
             - AttributeName: eventType
               KeyType: HASH
             - AttributeName: blockNumber
-              KeyType: HASH
-            - AttributeName: fields
+              KeyType: RANGE
+          ProvisionedThroughput:
+            ReadCapacityUnits: 1
+            WriteCapacityUnits: 1
+    LastBlockTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+          TableName: LastBlock
+          AttributeDefinitions:
+            - AttributeName: lastBlock
+              AttributeType: N
+          KeySchema:
+            - AttributeName: lastBlock
               KeyType: HASH
           ProvisionedThroughput:
             ReadCapacityUnits: 1
