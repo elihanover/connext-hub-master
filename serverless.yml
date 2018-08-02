@@ -4,6 +4,7 @@ plugins:
   - serverless-plugin-typescript
   - serverless-offline
   - serverless-sqs-local # local testing guy
+  - serverless-pg-migrations
   # - serverless-offline-localstack # for localstack
 
 # custom:
@@ -86,6 +87,38 @@ functions:
           path: chainsaw/request
           method: post
           cors: true
+  # db migrations
+  upVCStateUpdates:
+    handler: migrations/create-vcstateupdate.up
+    timeout: 30
+    environment:
+      DATABASE_URL: postgres://connext:whydidiputmybabyinthoseballoons@domain.rds.amazonaws.com:5432/watcher-db
+  downVCStateUpdates:
+    handler: migrations/create-vcstateupdate.down
+    timeout: 30
+    environment:
+      DATABASE_URL: postgres://connext:whydidiputmybabyinthoseballoons@domain.rds.amazonaws.com:5432/watcher-db
+  upLastBlock:
+    handler: migrations/create-lastBlock.up
+    timeout: 30
+    environment:
+      DATABASE_URL: postgres://connext:whydidiputmybabyinthoseballoons@domain.rds.amazonaws.com:5432/watcher-db
+  downLastBlock:
+    handler: migrations/create-lastBlock.down
+    timeout: 30
+    environment:
+      DATABASE_URL: postgres://connext:whydidiputmybabyinthoseballoons@domain.rds.amazonaws.com:5432/watcher-db
+  # admin functions
+  setLastBlock:
+    handler: admin.setLastBlock
+    events:
+      - http:
+          path: admin/setLastBlock/{block}
+          method: post
+          request:
+            paths:
+              block: true
+
 
 resources:
   Resources:
@@ -93,3 +126,13 @@ resources:
       Type: "AWS::SQS::Queue"
       Properties:
         QueueName: "ContractEventQueue"
+    WatcherDb:
+      Type: AWS::RDS::DBInstance
+      Properties:
+        Engine: Postgres
+        DBInstanceIdentifier: watcher-db
+        DBName: WatcherDB
+        MasterUsername: connext
+        MasterUserPassword: whydidiputmybabyinthoseballoons
+        DBInstanceClass: db.m4.large # TODO: ¿say whaat?
+        AllocatedStorage: 10 # TODO: ¿Say whaat??

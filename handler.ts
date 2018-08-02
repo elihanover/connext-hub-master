@@ -122,7 +122,7 @@ export async function catchEvents (event, context, callback) {
       }
     )
   } catch (error) {
-    console.log(error)
+    console.log("Last Block Error: " + error)
   }
 }
 
