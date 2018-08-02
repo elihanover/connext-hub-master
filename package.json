@@ -20,6 +20,7 @@
     "@types/aws-lambda": "^8.10.7",
     "@types/sequelize": "^4.27.23",
     "@types/uuid": "^3.4.3",
+    "babel-preset-env": "^1.7.0",
     "sequelize-cli": "^4.0.0",
     "serverless-offline": "^3.25.5",
     "serverless-offline-localstack": "0.0.3",

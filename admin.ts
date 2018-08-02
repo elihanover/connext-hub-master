@@ -1,3 +1,7 @@
+require('babel-register')({
+    presets: [ 'env' ]
+})
+
 import { models } from './models/index';
 const Sequelize = require('sequelize');
 import { Context, Callback } from "aws-lambda";

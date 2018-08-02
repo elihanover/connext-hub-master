@@ -1,4 +1,4 @@
-service: connext-watcher
+service: connextwatcher
 
 plugins:
   - serverless-plugin-typescript

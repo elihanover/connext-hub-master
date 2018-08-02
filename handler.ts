@@ -1,19 +1,34 @@
+console.log("1")
+require('babel-register')({
+    presets: [ 'env' ]
+})
+console.log("2")
 import * as _ from "lodash";
+console.log("3")
 import { Context, Callback } from "aws-lambda";
-import { models } from "./models/index";
+console.log("4")
+import { models } from "./models/index"; // DIES GOING TO GET MODELS
+console.log("5")
 import {
   VCStateUpdateAttributes,
   VCStateUpdateInstance,
 } from "./models/interfaces/vcstateupdate-interface";
+console.log("6")
 require('dotenv').config()
+console.log("7")
 const Sequelize = require('sequelize');
+console.log("8")
 const op = Sequelize.Op;
+console.log("9")
 const fs = require('fs') // for reading contract abi
+console.log("10")
 var Web3 = require('web3')
+console.log("11")
 // web3 = new Web3(Web3.givenProvider || new Web3.providers.WebsocketProvider("wss://rinkeby.infura.io/_ws"))
 var web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/v3/a81caafee3aa481ea334e50bb1826326"))
+console.log("12")
 var AWS = require('aws-sdk')
-
+console.log("13")
 // var myCredentials = new AWS.Credentials(process.env.AWS_KEY, process.env.AWS_SECRET_KEY)
 
 var sqs = new AWS.SQS({

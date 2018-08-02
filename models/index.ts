@@ -3,7 +3,6 @@ import * as fs from "fs";
 import * as path from "path";
 import * as SequelizeStatic from "sequelize";
 import { Sequelize } from "sequelize";
-import ContractEvent from "./contractevent";
 import VCStateUpdate from "./vcstateupdate";
 import LastBlock from "./lastblock";
 
@@ -21,7 +20,6 @@ class Database {
       host: "watcherdb.cvrv85edefpy.us-east-2.rds.amazonaws.com",
       dialect: "postgres"
     };
-
     (SequelizeStatic as any).cls = cls.createNamespace("sequelize-transaction");
     this._sequelize = new SequelizeStatic(
       dbConfig.database,
@@ -30,7 +28,6 @@ class Database {
       dbConfig
     );
     this._models = {} as any;
-
     console.log("__dirname: ", __dirname);
     fs.readdirSync(__dirname)
       .filter((file: string) => {
