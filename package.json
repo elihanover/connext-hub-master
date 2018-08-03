@@ -39,7 +39,7 @@
     "serverless-pg-migrations": "^1.0.1",
     "sqs-consumer": "^3.8.0",
     "uuid": "^3.3.2",
-    "web3": "^1.0.0-beta.34"
+    "web3": "^1.0.0-beta.35"
   },
   "install": "[ -e node_modules/sharp/build/Release/script.node ] || docker run --rm -v $PWD:/data -w /data node:8 npm install scrypt"
 }

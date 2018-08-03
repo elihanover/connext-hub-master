@@ -30,42 +30,41 @@ console.log("12")
 var AWS = require('aws-sdk')
 console.log("13")
 // var myCredentials = new AWS.Credentials(process.env.AWS_KEY, process.env.AWS_SECRET_KEY)
-
+console.log("3")
 var sqs = new AWS.SQS({
     // apiVersion: '2012-11-05',
     // credentials: myCredentials,
     // region: "none",
     endpoint: process.env.SQS_ENDPOINT
 });
-
+console.log("4")
+const docClient = new AWS.DynamoDB.DocumentClient({
+    region: 'us-east-2',
+    endpoint: 'https://dynamodb.us-east-2.amazonaws.com'
+})
+console.log("5")
 // Add vcStateUpdate from http request to postgres db
 export async function vcStateUpdate(event, context, callback) {
-    const update = JSON.parse("Event: "+ event.body)
-    const vcUpdate: VCStateUpdateAttributes = {
+  const update = JSON.parse("Event: "+ event.body)
+  docClient.put({
+    TableName: "VCStateUpdate",
+    Item: {
       eventType: "DidVCSettle",
       vcid: event.pathParameters.vcid,
       nonce: update.nonce,
       balanceA: update.balanceA,
       balanceB: update.balanceB,
       sig: update.sig
-    };
-    console.log("vcUpdate: " + vcUpdate)
-
-    try {
-      const e: VCStateUpdateInstance = await models.VCStateUpdate.create(
-        vcUpdate
-      );
-
-      callback(null, {
-        statusCode: 200,
-        headers: {
-          "x-custom-header" : "My Header Value"
-        },
-        body: "databased returned: " + JSON.stringify(e)
-      });
-    } catch(error) {
-      console.log(error)
     }
+  })
+
+  callback(null, {
+    statusCode: 200,
+    headers: {
+      "x-custom-header" : "My Header Value"
+    },
+    body: "databased returned: " + JSON.stringify(e)
+  });
 };
 
 // TODO: handle lcStateUpdate function
@@ -77,19 +76,39 @@ export async function vcStateUpdate(event, context, callback) {
 export async function catchEvents (event, context, callback) {
   var lastBlock = 0 // TODO: what do we want for production??
 
-  // get blockNumber of last polled block from LastBlock table
   try {
-    lastBlock = await models.LastBlock.findOne({
-      where: {
-        lastBlock: {
-          [op.ne]: null
-        }
+    console.log("BANG")
+    docClient.query({
+      TableName: "LastBlock",
+      FilterExpression: '#lb gt :b',
+      ExpressionAttributeNames: {
+        '#lb': "lastBlock"
+      },
+      ExpressionAttributeValues: {
+        ':b': 0
       }
+    }, function(err, data) {
+      if (err) console.log(err, err.stack)
+      else {
+        console.log(data)
+        lastBlock = data
+      }
+    })
+
+    console.log("BOOM")
+    callback(null, {
+      statusCode: 200,
+      headers: {
+        "x-custom-header" : "My Header Value"
+      },
+      body: "GOTTTTTEEMMMM"
     });
-    lastBlock = lastBlock.dataValues.lastBlock
-  } catch (error) {
+  }
+  catch (error) {
+    console.log("READ ERROR")
     console.log(error)
   }
+
   console.log("LastBlock: " + lastBlock)
 
   // get most recent block
@@ -125,20 +144,19 @@ export async function catchEvents (event, context, callback) {
 
 
   // update LastBlock table to hold lastest polled block
-  try {
-    await models.LastBlock.update(
-      {lastBlock: blockNumber},
-      {
-        where: {
-          lastBlock: {
-            [op.ne]: null
-          }
-        }
-      }
-    )
-  } catch (error) {
-    console.log("Last Block Error: " + error)
-  }
+  // TODO: CHANGE TO UPDATE INSTEAD?
+  docClient.put({
+    TableName: "LastBlock",
+    Item: {
+      lastBlock: parseInt(event.pathParameters.block)
+    }
+  }, function(err, data) {
+    if (err) {
+      console.log("UPDATE LAST BLOCK ERROR")
+      console.log(err, err.stack)
+    }
+    else console.log(data)
+  })
 }
 
 // challengeEvent receives an event from ContractEvents Queue,
@@ -155,17 +173,25 @@ export async function challengeEvent(message, context, callback) {
   console.log("event: " + eventFields.event)
   try {
     // (1) look into DB for higher nonce vcstateupdate
-    var proof: VCStateUpdateInstance = await models.VCStateUpdate.findOne({
-      where: { // get max cosigned update with nonce > event.nonce
-        vcid: {
-          [op.eq]: eventFields.returnValues.vcId
-        },
-        nonce: {
-          [op.gt]: eventFields.returnValues.updateSeq
-        },
-        eventType: {
-          [op.eq]: eventFields.event
-        }
+    const proof = null
+    docClient.query({
+      TableName: "VCStateUpdates",
+      FilterExpression: '#n gt :n and #v eq :vcid and #e eq :et',
+      ExpressionAttributeNames: {
+        '#n': "nonce",
+        '#v': "vcId",
+        '#e': "eventType"
+      },
+      ExpressionAttributeValues: {
+        ':n': eventFields.returnValues.updateSeq,
+        ':vcid': eventFields.returnValues.vcId,
+        ':et': eventFields.event
+      }
+    }, function(err, data) {
+      if (err) console.log(err, err.stack)
+      else {
+        console.log(data)
+        proof = data
       }
     })
 

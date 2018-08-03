@@ -4,27 +4,6 @@ plugins:
   - serverless-plugin-typescript
   - serverless-offline
   - serverless-sqs-local # local testing guy
-  - serverless-pg-migrations
-  # - serverless-offline-localstack # for localstack
-
-# custom:
-#   serverlessOfflineLocalstack:
-#     host: http://localhost
-#     kinesis:
-#       enabled: true
-#       intervalMillis: 5000
-#     endpoints:
-#       S3: http://localhost:4572
-#       DynamoDB: http://localhost:4570
-#       CloudFormation: http://localhost:4581
-#       Elasticsearch: http://localhost:4571
-#       ES: http://localhost:4578
-#       SNS: http://localhost:4575
-#       SQS: http://localhost:4576
-#       Lambda: http://localhost:4574
-#       Kinesis: http://localhost:4568
-#     debug: true
-
 
 provider:
   name: aws
@@ -47,12 +26,12 @@ package:
   include:
     - LedgerChannel.json
     - .env
-    - models/**
+    # - models/**
 
 functions:
   # GET FUNCTIONS
   challengeEvent:
-    handler: handler.challengeEvent
+    handler: functions/challengeEvent.challengeEvent
     events:
       - sqs:
           batchSize: 1
@@ -61,7 +40,7 @@ functions:
               - ContractEventQueue
               - Arn
   catchEvents:
-    handler: handler.catchEvents
+    handler: functions/catchEvents.catchEvents
     events:
       - http:
           path: catchEvents
@@ -69,7 +48,7 @@ functions:
           cors: true
   # POST FUNCTIONS
   vcStateUpdate:
-    handler: handler.vcStateUpdate
+    handler: functions/vcStateUpdate.vcStateUpdate
     events:
       - http:
           path: virtualchannel/{vcid}/update
@@ -81,16 +60,9 @@ functions:
     handler: handler.cosignStateUpdate
     events:
       - http: post cosignStateUpdate
-  chainsawPoll:
-    handler: functions/chainsawPoll/handler.handler
-    events:
-      - http:
-          path: chainsaw/request
-          method: post
-          cors: true
   # admin functions
   setLastBlock:
-    handler: admin.setLastBlock
+    handler: functions/admin.setLastBlock
     events:
       - http:
           path: admin/setLastBlock/{block}
@@ -98,18 +70,6 @@ functions:
           request:
             paths:
               block: true
-  # db migrations
-  up:
-    handler: migrations.up
-    timeout: 30
-    environment:
-      DATABASE_URL: postgres://connext:whydidiputmybabyinthoseballoons@watcherdb.cvrv85edefpy.us-east-2.rds.amazonaws.com:5432/watcherdb
-  down:
-    handler: migrations.down
-    timeout: 30
-    environment:
-      DATABASE_URL: postgres://connext:whydidiputmybabyinthoseballoons@watcherdb.cvrv85edefpy.us-east-2.rds.amazonaws.com:5432/watcherdb
-
 
 resources:
   Resources:
@@ -117,13 +77,33 @@ resources:
       Type: "AWS::SQS::Queue"
       Properties:
         QueueName: "ContractEventQueue"
-    WatcherDb:
-      Type: AWS::RDS::DBInstance
+    EventTable:
+      Type: AWS::DynamoDB::Table
       Properties:
-        Engine: Postgres
-        DBInstanceIdentifier: watcherdb
-        DBName: WatcherDB
-        MasterUsername: connext
-        MasterUserPassword: whydidiputmybabyinthoseballoons
-        DBInstanceClass: db.m4.large # TODO: ¿say whaat?
-        AllocatedStorage: 10 # TODO: ¿Say whaat??
+          TableName: vcStateUpdates
+          AttributeDefinitions:
+            - AttributeName: eventType
+              AttributeType: S
+            - AttributeName: nonce
+              AttributeType: N
+          KeySchema:
+            - AttributeName: eventType
+              KeyType: HASH
+            - AttributeName: nonce
+              KeyType: RANGE
+          ProvisionedThroughput:
+            ReadCapacityUnits: 1
+            WriteCapacityUnits: 1
+    LastBlockTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+          TableName: LastBlock
+          AttributeDefinitions:
+            - AttributeName: lastBlock
+              AttributeType: N
+          KeySchema:
+            - AttributeName: lastBlock
+              KeyType: HASH
+          ProvisionedThroughput:
+            ReadCapacityUnits: 1
+            WriteCapacityUnits: 1
