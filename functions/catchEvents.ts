@@ -5,17 +5,23 @@ require('dotenv').config()
 console.log("3")
 const fs = require('fs') // for reading contract abi
 console.log("4")
-var Web3 = require('web3')
-console.log("5")
-var web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/v3/a81caafee3aa481ea334e50bb1826326"))
-console.log("6")
 var AWS = require('aws-sdk')
+console.log("5")
+try {
+  var Web3 = require('web3')
+} catch(err) {
+  console.log("err with web3")
+  console.log(err, err.stack)
+}
+console.log("6")
+var web3 = new Web3(new Web3.providers.HttpProvider("https://rinkeby.infura.io/v3/a81caafee3aa481ea334e50bb1826326"))
 console.log("7")
 var sqs = new AWS.SQS({
     // apiVersion: '2012-11-05',
     // credentials: myCredentials,
     // region: "none",
-    endpoint: process.env.SQS_ENDPOINT
+    // endpoint: process.env.SQS_ENDPOINT
+    endpoint: "https://sqs.us-east-2.amazonaws.com/849756307042/ContractEventQueue"
 });
 console.log("8")
 const docClient = new AWS.DynamoDB.DocumentClient({
@@ -30,11 +36,8 @@ export async function catchEvents (event, context, callback) {
   try {
     console.log("BANG")
     docClient.query({
-      TableName: "LastBlock",
-      FilterExpression: '#lb gt :b',
-      ExpressionAttributeNames: {
-        '#lb': "lastBlock"
-      },
+      TableName: "lastBlock",
+      KeyConditionExpression: 'lastBlock gt :b', // TODO: expression error
       ExpressionAttributeValues: {
         ':b': 0
       }
@@ -47,13 +50,6 @@ export async function catchEvents (event, context, callback) {
     })
 
     console.log("BOOM")
-    callback(null, {
-      statusCode: 200,
-      headers: {
-        "x-custom-header" : "My Header Value"
-      },
-      body: "GOTTTTTEEMMMM"
-    });
   }
   catch (error) {
     console.log("READ ERROR")
@@ -96,18 +92,25 @@ export async function catchEvents (event, context, callback) {
 
   // update LastBlock table to hold lastest polled block
   // TODO: CHANGE TO UPDATE INSTEAD?
-  docClient.put({
-    TableName: "LastBlock",
-    Item: {
-      lastBlock: parseInt(event.pathParameters.block)
-    }
-  }, function(err, data) {
-    if (err) {
-      console.log("UPDATE LAST BLOCK ERROR")
-      console.log(err, err.stack)
-    }
-    else console.log(data)
-  })
+  try {
+    docClient.put({
+      TableName: "lastBlock",
+      Item: {
+        lastBlock: blockNumber
+      }
+    }, function(err, data) {
+      if (err) {
+        console.log("UPDATE LAST BLOCK ERROR")
+        console.log(err, err.stack)
+      }
+      else {
+        console.log("UPDATE LAST BLOCK WORKED")
+        console.log(data)
+      }
+    })
+  } catch (error) {
+    console.log(error)
+  }
 }
 
 // createSQSMessageFrom constructs an SQS message from a blockchain event

@@ -33,7 +33,7 @@ export async function challengeEvent(message, context, callback) {
     const proof = null
     docClient.query({
       TableName: "VCStateUpdates",
-      FilterExpression: '#n gt :n and #v eq :vcid and #e eq :et',
+      FilterExpression: '#n gt :n and #v eq :vcid and #e eq :et', // TODO: formatted wrong
       ExpressionAttributeNames: {
         '#n': "nonce",
         '#v': "vcId",
@@ -74,7 +74,7 @@ export async function challengeEvent(message, context, callback) {
 async function disputeWithProof(proof) {
   console.log("proof: " + proof)
   const contractAddress = process.env.CONTRACT_ADDRESS
-  const contract = JSON.parse(fs.readFileSync('LedgerChannel.json', 'utf8'));
+  const contract = JSON.parse(fs.readFileSync(__dirname + '/LedgerChannel.json', 'utf8')); // TODO: this is not in same directory, change path
   const ChannelManager = new web3.eth.Contract(contract.abi, contractAddress)
 
   if (proof.eventType == "DidVCSettle") {

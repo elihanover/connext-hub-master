@@ -1,4 +1,4 @@
-service: connextwatcher
+service: connext-watcher
 
 plugins:
   - serverless-plugin-typescript
@@ -7,7 +7,7 @@ plugins:
 
 provider:
   name: aws
-  runtime: nodejs6.10
+  runtime: nodejs8.10
   # aws queue
   region: us-east-2
   # iamRoleStatements:
@@ -24,7 +24,7 @@ provider:
 package:
   excludeDevDependencies: true
   include:
-    - LedgerChannel.json
+    - functions/LedgerChannel.json
     - .env
     # - models/**
 
@@ -56,10 +56,6 @@ functions:
           request:
             paths:
               vc: true
-  cosignStateUpdate:
-    handler: handler.cosignStateUpdate
-    events:
-      - http: post cosignStateUpdate
   # admin functions
   setLastBlock:
     handler: functions/admin.setLastBlock
@@ -97,13 +93,13 @@ resources:
     LastBlockTable:
       Type: AWS::DynamoDB::Table
       Properties:
-          TableName: LastBlock
+          TableName: lastBlock
           AttributeDefinitions:
             - AttributeName: lastBlock
               AttributeType: N
           KeySchema:
             - AttributeName: lastBlock
-              KeyType: HASH
+              KeyType: RANGE
           ProvisionedThroughput:
             ReadCapacityUnits: 1
             WriteCapacityUnits: 1

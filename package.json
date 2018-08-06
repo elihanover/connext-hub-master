@@ -18,12 +18,9 @@
   "homepage": "https://github.com/ConnextProject/connext-hub#readme",
   "devDependencies": {
     "@types/aws-lambda": "^8.10.7",
-    "@types/sequelize": "^4.27.23",
     "@types/uuid": "^3.4.3",
     "babel-preset-env": "^1.7.0",
-    "sequelize-cli": "^4.0.0",
     "serverless-offline": "^3.25.5",
-    "serverless-offline-localstack": "0.0.3",
     "serverless-plugin-typescript": "^1.1.5",
     "serverless-sqs-local": "^1.1.2"
   },
@@ -31,15 +28,10 @@
     "aws-sdk": "^2.267.1",
     "continuation-local-storage": "^3.2.1",
     "dotenv": "^6.0.0",
-    "pg": "^7.4.3",
-    "pg-hstore": "^2.3.2",
     "scrypt": "^6.0.3",
-    "sequelize": "^4.38.0",
     "serverless-dynamodb-local": "^0.2.30",
-    "serverless-pg-migrations": "^1.0.1",
     "sqs-consumer": "^3.8.0",
     "uuid": "^3.3.2",
     "web3": "^1.0.0-beta.35"
-  },
-  "install": "[ -e node_modules/sharp/build/Release/script.node ] || docker run --rm -v $PWD:/data -w /data node:8 npm install scrypt"
+  }
 }
