@@ -66,6 +66,12 @@ functions:
           request:
             paths:
               block: true
+  testCatch:
+    handler: functions/testCatch.handler
+    events:
+      - http:
+          path: testCatch
+          method: get
 
 resources:
   Resources:
@@ -95,9 +101,13 @@ resources:
       Properties:
           TableName: lastBlock
           AttributeDefinitions:
+            - AttributeName: test
+              AttributeType: S
             - AttributeName: lastBlock
               AttributeType: N
           KeySchema:
+            - AttributeName: test
+              KeyType: HASH
             - AttributeName: lastBlock
               KeyType: RANGE
           ProvisionedThroughput:

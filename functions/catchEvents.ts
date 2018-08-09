@@ -21,7 +21,7 @@ var sqs = new AWS.SQS({
     // credentials: myCredentials,
     // region: "none",
     // endpoint: process.env.SQS_ENDPOINT
-    endpoint: "https://sqs.us-east-2.amazonaws.com/849756307042/ContractEventQueue"
+    endpoint: process.env.SQS_URL
 });
 console.log("8")
 const docClient = new AWS.DynamoDB.DocumentClient({
@@ -31,38 +31,25 @@ const docClient = new AWS.DynamoDB.DocumentClient({
 
 // catchEvents gets hub contract events and stores them in ContractEvents DB
 export async function catchEvents (event, context, callback) {
-  var lastBlock = 0 // TODO: what do we want for production??
+  console.log("BANG")
+  var data = await docClient.query({
+    TableName: "lastBlock",
+    KeyConditionExpression: 'test = :t AND lastBlock > :b', // TODO: expression error
+    ExpressionAttributeValues: {
+      ':t': 'test',
+      ':b': 0
+    }
+  }).promise()
 
-  try {
-    console.log("BANG")
-    docClient.query({
-      TableName: "lastBlock",
-      KeyConditionExpression: 'lastBlock gt :b', // TODO: expression error
-      ExpressionAttributeValues: {
-        ':b': 0
-      }
-    }, function(err, data) {
-      if (err) console.log(err, err.stack)
-      else {
-        console.log(data)
-        lastBlock = data
-      }
-    })
-
-    console.log("BOOM")
-  }
-  catch (error) {
-    console.log("READ ERROR")
-    console.log(error)
-  }
-
-  console.log("LastBlock: " + lastBlock)
+  var lastBlock = data.Items[data.Count - 1].lastBlock
 
   // get most recent block
   var blockNumber = await web3.eth.getBlockNumber(function(err, res) {
     return res
   })
-  console.log("Blocknumber: "+ blockNumber)
+
+  // TODO: FOR TESTING
+  lastBlock = 2500000
 
   const contractAddress = process.env.CONTRACT_ADDRESS
   console.log("Contract Address: " + contractAddress)
@@ -70,47 +57,56 @@ export async function catchEvents (event, context, callback) {
   // const contract = process.env.CONTRACT_JSON
   const eventFinder = new web3.eth.Contract(contract.abi, contractAddress)
 
+  console.log(eventFinder)
   // Query contract for DidVCSettle events between last block checked and now
-  eventFinder.getPastEvents("DidVCSettle", {
+  console.log("LastBlock: " + lastBlock)
+  console.log("Blocknumber: " + blockNumber)
+  var events = await eventFinder.getPastEvents("DidVCSettle", {
     filter: {},
     fromBlock: lastBlock,
     toBlock: blockNumber
-  }, function(error, events){ console.log(events) })
-  .then(async function(events) {
-    // Add each of these events to the ContractEvents database
-    /// Add each of these events to ContractEvents Queue
-    for (var i in events){
-      console.log(event[i])
-      // Format and send SQS message
-      sqsMessageFrom(events[i])
-    }
   })
-  console.log("Done with events.")
+
+  // Add each of these events to the ContractEvents queue
+  for (var i in events){
+    console.log(events[i])
+    // Format and send SQS message
+    sqsMessageFrom(events[i])
+  }
 
   // TODO: add the same functionality for lcstateupdate
 
 
   // update LastBlock table to hold lastest polled block
-  // TODO: CHANGE TO UPDATE INSTEAD?
+  // TODO: CHANGE TO UPDATE INSTEAD
   try {
     docClient.put({
       TableName: "lastBlock",
       Item: {
+        test: 'test',
         lastBlock: blockNumber
       }
     }, function(err, data) {
       if (err) {
-        console.log("UPDATE LAST BLOCK ERROR")
+        console.log("Write Error")
         console.log(err, err.stack)
       }
       else {
-        console.log("UPDATE LAST BLOCK WORKED")
+        console.log("Write Success")
         console.log(data)
       }
     })
   } catch (error) {
     console.log(error)
   }
+
+  callback(null, {
+    statusCode: 200,
+    headers: {
+      "x-custom-header" : "My Header Value"
+    },
+    body: "DONE"
+  });
 }
 
 // createSQSMessageFrom constructs an SQS message from a blockchain event
@@ -141,6 +137,7 @@ async function sqsMessageFrom(event) {
       StringValue: JSON.stringify(event)
     }
   })
+
   const params = {
      DelaySeconds: 5,
      MessageAttributes: null,

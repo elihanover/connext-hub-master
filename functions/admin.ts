@@ -17,8 +17,9 @@ export async function setLastBlock(event, context, callback) {
   try {
     console.log("BANG")
     docClient.put({
-      TableName: "LastBlock",
+      TableName: "lastBlock",
       Item: {
+        test: 'test',
         lastBlock: parseInt(event.pathParameters.block)
       }
     }, function(err, data) {

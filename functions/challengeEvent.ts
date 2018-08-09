@@ -19,9 +19,9 @@ const docClient = new AWS.DynamoDB.DocumentClient({
 // challengeEvent receives an event from ContractEvents Queue,
 // checks if a higher nonce state update exists for that virtual channel,
 // and then makes a dispute on chain if one does exist
-export async function challengeEvent(message, context, callback) {
-  // console.log("event body: " + event.Body)
-  const dispute = JSON.parse(message.Body)
+export async function challengeEvent(event, context, callback) {
+  console.log("event body: " + event.Body)
+  const dispute = JSON.parse(event.Body)
   const eventFields = JSON.parse(dispute.fields.StringValue)
 
   console.log(JSON.stringify(eventFields, null, 4))
