@@ -20,51 +20,49 @@ const docClient = new AWS.DynamoDB.DocumentClient({
 // checks if a higher nonce state update exists for that virtual channel,
 // and then makes a dispute on chain if one does exist
 export async function challengeEvent(event, context, callback) {
-  console.log("event body: " + event.Body)
-  const dispute = JSON.parse(event.Body)
+  console.log("event: " + JSON.stringify(event))
+  const dispute = JSON.parse(event.Records[0].body)
   const eventFields = JSON.parse(dispute.fields.StringValue)
 
   console.log(JSON.stringify(eventFields, null, 4))
   console.log("vcid: " + eventFields.returnValues.vcId)
-  console.log("updateSeq: " + eventFields.returnValues.updateSeq)
+  console.log("updateSeq: " + parseInt(eventFields.returnValues.updateSeq))
   console.log("event: " + eventFields.event)
+  console.log(typeof eventFields.returnValues.vcId)
+  console.log(typeof parseInt(eventFields.returnValues.updateSeq))
+  console.log(typeof eventFields.event)
   try {
     // (1) look into DB for higher nonce vcstateupdate
     const proof = null
-    docClient.query({
-      TableName: "VCStateUpdates",
-      FilterExpression: '#n gt :n and #v eq :vcid and #e eq :et', // TODO: formatted wrong
-      ExpressionAttributeNames: {
-        '#n': "nonce",
-        '#v': "vcId",
-        '#e': "eventType"
-      },
+    await docClient.query({
+      TableName: "vcStateUpdates",
+      KeyConditionExpression: 'eventType = :et AND nonce > :n', // TODO: MAKE NONCE THE FILTER KEY and use vcID and eventType as KeyConditionExpression
+      FilterExpression: 'vcid = :vc',
       ExpressionAttributeValues: {
-        ':n': eventFields.returnValues.updateSeq,
-        ':vcid': eventFields.returnValues.vcId,
+        ':n': parseInt(eventFields.returnValues.updateSeq),
+        ':vc': eventFields.returnValues.vcId,
         ':et': eventFields.event
       }
-    }, function(err, data) {
+    }, function(err, proof) {
       if (err) console.log(err, err.stack)
       else {
-        console.log(data)
-        proof = data
+        proof = proof.Items[0]
+        console.log("proof: " + JSON.stringify(proof))
+        // (2) if there is a proof, submit that
+        if (proof) {
+          // format and submit proof
+          // proof = proof.dataValues
+          proof.lcid = eventFields.returnValues.lcId
+          proof.partyA = eventFields.returnValues.partyA
+          proof.partyB = eventFields.returnValues.partyB
+
+          console.log("PROOF':" + JSON.stringify(proof, null, 4))
+          disputeWithProof(proof)
+        } else {
+          console.log("NO PROOF")
+        }
       }
-    })
-
-    // (2) if there is a proof, submit that
-    if (proof) {
-      // format and submit proof
-      proof = proof.dataValues
-      proof.lcid = eventFields.returnValues.lcId
-      proof.partyA = eventFields.returnValues.partyA
-      proof.partyB = eventFields.returnValues.partyB
-
-      console.log("PROOF':" + JSON.stringify(proof, null, 4))
-      disputeWithProof(proof)
-    } else {
-      console.log("NO PROOF")
-    }
+    }).promise()
   } catch (error) {
     console.log(error)
   }
@@ -72,7 +70,7 @@ export async function challengeEvent(event, context, callback) {
 
 // disputeWithProof challenges with higher nonce state update
 async function disputeWithProof(proof) {
-  console.log("proof: " + proof)
+  console.log("proof: " + JSON.stringify(proof))
   const contractAddress = process.env.CONTRACT_ADDRESS
   const contract = JSON.parse(fs.readFileSync(__dirname + '/LedgerChannel.json', 'utf8')); // TODO: this is not in same directory, change path
   const ChannelManager = new web3.eth.Contract(contract.abi, contractAddress)
